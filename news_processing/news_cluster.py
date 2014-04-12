@@ -1,5 +1,8 @@
 import couchdb
 from crawler import settings
+import logging, gensim, bz2
+from gensim import corpora, models, similarities
+from itertools import chain
 
 __author__ = 'duc07'
 
@@ -9,40 +12,6 @@ class TweetCluster:
 
     def __init__(self):
         print 'self'
-
-    # def calc_lsh(self):
-    #     print 'calculate LSH'
-    #
-    # def get_set_collide(self, _doc):
-    #     print 'return set of colliding documents for a given document using LSH'
-    #
-    # def cluster(self, _clusters, _doc):
-    #     # format: _clusters: {cluster1: [center1, [doc1, doc2, doc3,...]], cluster2: [], cluster3: []}
-    #     # format: _doc: {term1: tfidf1, term2: tfidf2}
-    #     if len(_clusters) == 0:
-    #         # no cluster
-    #         print 'no cluster'
-    #     else:
-    #         min_dist = 10000
-    #         min_cluster = ''
-    #         for name, cluster in _clusters.iteritems():
-    #             centroid = cluster[0]
-    #             if self.distance(centroid, _doc) < min_dist:
-    #                 min_cluster = name
-    #         # assign _doc to cluster with min distance
-    #         _clusters[min_cluster][1].append(_doc)
-    #         self.update_cluster(_clusters[min_cluster])
-    #
-    #
-    # def distance(self, _doc1, _doc2):
-    #     return 0
-    #
-    # def update_cluster(self, _cluster):
-    #     return 0
-
-    # when new tweets come -> new vocabularies -> how update tf-idf of old tweets -> just update df of center of cluster
-    # since when new tweets come, idf does not change, only df of all tweets change (and df of a term for all docs
-    # are same.)
 
 def couchdb_pager(db, view_name='_all_docs',
                   startkey=None, startkey_docid=None,
@@ -105,14 +74,8 @@ def clean_doc(documents):
     return texts
 
 
-def lsa():
-    import logging, gensim, bz2
-
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-
-    from gensim import corpora, models, similarities
-
-    documents = retrieve_tweets(1000)
+def load_corpus(_number_tweets):
+    documents = retrieve_tweets(_number_tweets)
     texts = clean_doc(documents)
     dictionary = corpora.Dictionary(texts)
     corpus = [dictionary.doc2bow(text) for text in texts]
@@ -122,13 +85,89 @@ def lsa():
 
     # load corpus iterator
     mm = corpus  # gensim.corpora.MmCorpus('wiki_en_tfidf.mm')
+    return id2word, mm, documents
+
+
+def lsa():
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
+    id2word, mm, documents = load_corpus(10000)
 
     # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
-    lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=10,
+    # lsa = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
+    #                                       update_every=1, chunksize=100, passes=1)
+    lsa = gensim.models.lsimodel.LsiModel(corpus=mm, id2word=id2word, num_topics=100)
+
+    # print the most contributing words for 20 randomly selected topics
+    lsa.print_topics(100)
+
+
+def lda():
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
+    id2word, mm, documents = load_corpus(2000)
+
+    # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
+    lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
                                           update_every=1, chunksize=100, passes=1)
 
     # print the most contributing words for 20 randomly selected topics
     lda.print_topics(100)
+
+    # doc_bow = [(0, 1), (1, 1)]
+    # t = lda[doc_bow]
+
+
+    # Assigns the topics to the documents in corpus
+    lda_corpus = [lda[d] for d in mm]
+    # lda_corpus = lda[mm]
+    # cluster1 = []
+    # for i,j in zip(lda_corpus,documents):
+    #     if i[0][1] > 1:
+    #         print '1'
+    full_lda_corpus = []
+    for d in lda_corpus:
+        try:
+            d = gensim.matutils.sparse2full(d, 100)
+            full_lda_corpus.append(d)
+        except:
+            print 'error: ', d
+    # cluster1 = []
+    # for i, j in zip(lda_corpus, documents):
+    #     if i[0][1] > 1:
+    #         print '1'
+
+    # Find the threshold, let's set the threshold to be 1/#clusters,
+    # To prove that the threshold is sane, we average the sum of all probabilities:
+    scores = list(chain(*[[score for topic, score in topic] \
+                          for topic in [doc for doc in lda_corpus]]))
+    threshold = sum(scores)/len(scores)
+    print 'threshold = ', threshold
+    print '--------------------------------------------'
+    # for v in full_lda_corpus:
+    #     for i in v:
+    #         print i
+
+    # for i, j in zip(full_lda_corpus, documents):
+    #     try:
+    #         if i[0][1] > threshold:
+    #             cluster1 = j
+    #     except:
+    #         print 'error'
+    cluster1 = [j for i, j in zip(full_lda_corpus, documents) if i[0] > threshold]
+    cluster2 = [j for i, j in zip(full_lda_corpus, documents) if i[1] > threshold]
+    cluster3 = [j for i, j in zip(full_lda_corpus, documents) if i[2] > threshold]
+    # cluster3 = [j for i, j in zip(full_lda_corpus, documents) if i[2][1] > threshold]
+
+    print 'cluster1: '
+    for t in cluster1:
+        print t, '\n'
+    print 'cluster2: '
+    for t in cluster2:
+        print t, '\n'
+    print 'cluster3: '
+    for t in cluster3:
+        print t, '\n'
 
     # a trained model can used be to transform new, unseen documents
     # (plain bag-of-words count vectors) into LDA topic distributions:
@@ -137,7 +176,7 @@ def lsa():
 
 
 def main():
-    lsa()
+    lda()
 
 if __name__ == "__main__":
     main()
