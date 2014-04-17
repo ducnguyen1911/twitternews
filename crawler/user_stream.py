@@ -2,7 +2,7 @@ import json
 
 from tweepy.streaming import StreamListener
 from tweepy import Stream, OAuthHandler
-import couchdb
+import couchdbkit
 import settings
 import time
 import sys
@@ -62,7 +62,7 @@ def main():
     auth.set_access_token(settings.access_token,
                           settings.access_secret)
 
-    server = couchdb.Server()
+    server = couchdbkit.Server()
     db = server[settings.database]
 
     listener = CouchDBStreamListener(db)
