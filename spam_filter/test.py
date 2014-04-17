@@ -1,12 +1,6 @@
 import filter2
 
-cl = filter2.naivebayes(filter2.getWords)
-filter2.sampletrain(cl)
-print cl.classify('quick rabbit',default='unknown')
-
-print cl.classify('quick money',default='unknown')
-
-cl.setthreshold('bad',3.0)
-print cl.classify('quick money',default='unknown')
-
-
+cl2=filter2.naivebayes(filter2.getWords)
+cl2.setdb('test1.db')
+filter2.sampletrain(cl2)
+print cl2.classify('quick money')
