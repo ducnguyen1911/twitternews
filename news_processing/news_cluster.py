@@ -51,7 +51,7 @@ def retrieve_tweets(_db_name, _numb_tweets):
 
     results = []
     i = 0
-    for doc in couchdb_pager(db):
+    for doc in couchdb_pager(db, bulk=_numb_tweets):
         # print '--> ', doc, ' - ', db[doc]['text']
         results.append(db[doc]['text'])
         i += 1
@@ -63,7 +63,7 @@ def retrieve_tweets(_db_name, _numb_tweets):
 def clean_doc(documents):
     # remove common words and tokenize
     stoplist = set('rt for a of the and to in i my me you your this'.split())
-    texts = [[word for word in document.lower().split() if word not in stoplist]
+    texts = [[word for word in document.lower().split() if (word not in stoplist and is_ascii(word))]
              for document in documents]
 
     # remove words that appear only once
@@ -73,11 +73,20 @@ def clean_doc(documents):
              for text in texts]
     return texts
 
+def is_ascii(_word):
+    try:
+        _word.decode('ascii')
+    except:
+        return False
+    else:
+        return True
 
 def load_corpus(_number_tweets):
     documents = retrieve_tweets(settings.database, _number_tweets)
     texts = clean_doc(documents)
-    dictionary = corpora.Dictionary(texts)
+    # dictionary = corpora.Dictionary(texts)
+    dictionary = corpora.HashDictionary(texts, id_range=32000)
+    dictionary.save('/tmp/hashDict.dict')
     corpus = [dictionary.doc2bow(text) for text in texts]
 
     # load id->word mapping (the dictionary), one of the results of step 2 above
@@ -96,12 +105,13 @@ def lsa():
     lsa.print_topics(100)
 
 
-def lda():
+def lda_train():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    id2word, mm, documents = load_corpus(2000)
+    id2word, mm, documents = load_corpus(1000)
     # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
     lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
                                           update_every=1, chunksize=100, passes=1)
+    lda.save('/tmp/model.lda')
     # print the most contributing words for 20 randomly selected topics
     lda.print_topics(100)
 
@@ -144,8 +154,58 @@ def lda():
         print t, '\n'
 
 
+def hdp():
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    id2word, mm, documents = load_corpus(1000)
+    # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
+    # lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
+    #                                       update_every=1, chunksize=100, passes=1)
+    hdp = gensim.models.hdpmodel.HdpModel(mm, id2word)
+    # print the most contributing words for 20 randomly selected topics
+    hdp.print_topics(100)
+
+
+def load_model():
+    return models.LdaModel.load('/tmp/model.lda')
+
+
+def load_dict():
+    return corpora.HashDictionary.load('/tmp/hashDict.dict')
+
+
+def main_process(_db_name, _bulk_size):
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    server = couchdb.Server()
+    db = server[_db_name]
+    tweet_bulk = []
+    lda_model = load_model()
+    i = 0
+    for doc in couchdb_pager(db, bulk=_bulk_size):
+        # print '--> ', doc, ' - ', db[doc]['text']
+        tweet_bulk.append(db[doc]['text'])
+        i += 1
+        if i == _bulk_size:
+            print 'Load enough tweets.----------------------------------'
+            # process bulk of tweets
+            tweet_bulk = clean_doc(tweet_bulk)
+            dict = load_dict()
+            new_corpus = [dict.doc2bow(tweet) for tweet in tweet_bulk]
+            print 'Update LDA model ----------------------------------'
+            lda_model.update(new_corpus)
+            print 'Print topics: ----------------------------------'
+            lda_model.print_topics(30)
+            # save list of topics + related tweets to a pickle file or DB -> GUI load results later
+
+            # reset
+            tweet_bulk = []
+            i = 0
+    return tweet_bulk
+
+
 def main():
-    lda()
+    # lda_train()
+    # hdp()
+    main_process(settings.database_geo, 1000)
 
 if __name__ == "__main__":
     main()
