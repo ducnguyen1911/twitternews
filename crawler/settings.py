@@ -14,3 +14,4 @@ asecret = 'yaPDMTdnImz9hGqEp5V5LPtLyla5HJdALbFyHNd1x1iWV'  # 'Pi60VAcdaby409frT6
 
 database = 'twitterutils'
 database_geo = 'twitterutils_geo'
+database_us = 'twitterutils_us'
