@@ -21,9 +21,48 @@ def lsa_train():
     lsa.print_topics(100)
 
 
+def add_geo_center(ls_topics):
+    for topic in ls_topics:
+        geo_center = [0, 0]  # long, lat
+        i = 0
+        for tweet in topic[1]:
+            if tweet['coordinates']['coordinates']:
+                i += 1
+                geo_center[0] += tweet['coordinates']['coordinates'][0]  # long
+                geo_center[1] += tweet['coordinates']['coordinates'][1]  # lat
+        geo_center[0] /= i
+        geo_center[1] /= i
+        topic.append(geo_center)
+    return ls_topics
+
+
+# retweet_count
+# favorite_count
+# retweeted_status.retweet_count
+def add_ranking_score(ls_topics):
+    for topic in ls_topics:
+        numb_favorite = 0
+        numb_rt = 0
+        numb_org_rt = 0
+        for tweet in topic[1]:
+            if tweet['retweet_count']:
+                print 'retweet occur \n'
+                numb_rt += tweet['retweet_count']
+            if tweet['favorite_count']:
+                print 'favorite occur \n'
+                numb_favorite += tweet['favorite_count']
+            if 'retweeted_status' in tweet:
+                if tweet['retweeted_status']['retweet_count']:
+                    numb_org_rt += tweet['retweeted_status']['retweet_count']
+        topic_score = numb_favorite + numb_rt * 2 + numb_org_rt * 0.5
+        topic.append(topic_score)
+    return ls_topics
+
+
+
 def lda_train():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    id2word, mm, documents = load_corpus(9000, start_time='2014-04-20T00:00:00', end_time='2014-04-20T23:59:59')
+    id2word, mm, tweets = load_corpus(1000, start_time='2014-04-20T00:00:00', end_time='2014-04-20T23:59:59')
     # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
     lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
                                           update_every=1, chunksize=1000, passes=1)
@@ -31,7 +70,13 @@ def lda_train():
     # print the most contributing words for 20 randomly selected topics
     lda.print_topics(100)
 
-    ls_topics = get_topics(lda, mm, documents, 100)
+    ls_topics = get_topics(lda, mm, tweets, 100)
+    # add geo(lat, long) for center of clusters:
+    ls_topics = add_geo_center(ls_topics)
+    # add ranking score for each cluster:
+    ls_topics = add_ranking_score(ls_topics)
+    # save to pickle file
+    pickle.dump(ls_topics, open("topics.p", "wb"))
     return ls_topics
 
     # # Assigns the topics to the documents in corpus
@@ -128,34 +173,42 @@ def retrieve_tweets(_db_name, _numb_tweets, _start_time=None, _end_time=None):
                                  startkey=_start_time, endkey=_end_time,
                                  bulk=_numb_tweets):
             # print '--> ', doc, ' - ', db[doc]['text']
-            results.append(db[doc]['text'])
+            # results.append(db[doc]['text'])
+            results.append(db[doc])  # append all properties of tweets
             i += 1
             if i == _numb_tweets:
                 break
     else:
         for doc in couchdb_pager(db, bulk=_numb_tweets):
             # print '--> ', doc, ' - ', db[doc]['text']
-            results.append(db[doc]['text'])
+            # results.append(db[doc]['text'])
+            results.append(db[doc])  # append all properties of tweets
             i += 1
             if i == _numb_tweets:
                 break
     return results
 
 
+def get_texts(tweets):
+    texts = [t['text'] for t in tweets]
+    return texts
+
+
 def load_corpus(_number_tweets, start_time=None, end_time=None):
-    documents = retrieve_tweets(settings.database_us, _number_tweets, _start_time=start_time, _end_time=end_time)
-    texts = clean_doc(documents)
+    tweets = retrieve_tweets(settings.database_us, _number_tweets, _start_time=start_time, _end_time=end_time)
+    texts = get_texts(tweets)
+    texts = clean(texts)
     dictionary = corpora.Dictionary(texts)
     # dictionary = corpora.HashDictionary(texts, id_range=100000)
     dictionary.save('/tmp/hashDict.dict')
     corpus = [dictionary.doc2bow(text) for text in texts]
 
     # load id->word mapping (the dictionary), one of the results of step 2 above
-    id2word = dictionary  # gensim.corpora.Dictionary.load_from_text('wiki_en_wordids.txt')
+    # id2word = dictionary  # gensim.corpora.Dictionary.load_from_text('wiki_en_wordids.txt')
 
     # load corpus iterator
-    mm = corpus  # gensim.corpora.MmCorpus('wiki_en_tfidf.mm')
-    return id2word, mm, documents
+    # mm = corpus  # gensim.corpora.MmCorpus('wiki_en_tfidf.mm')
+    return dictionary, corpus, tweets
 
 
 def load_model():
@@ -165,15 +218,14 @@ def load_model():
 def load_dict():
     return corpora.HashDictionary.load('/tmp/hashDict.dict')
 
-def clean_doc(documents):
+
+def clean(documents):
     # remove common words and tokenize
     stoplist = set('rt for a of the and to in i my me you your this'.split())
-    texts = [[word for word in document.lower().split() if (word not in stoplist and is_ascii(word))]
-             for document in documents]
+    texts = [[word for word in doc.lower().split() if (word not in stoplist and is_ascii(word))]
+             for doc in documents]
 
     # remove words that appear only once
-    # for t in texts:
-    #     print t
     all_tokens = sum(texts, [])
     tokens_once = set(word for word in set(all_tokens) if all_tokens.count(word) == 1)
     texts = [[word for word in text if word not in tokens_once]
@@ -194,7 +246,7 @@ def is_ascii(_word):
         return True
 
 
-def get_topics(_lda, _mm, _documents, _numb_topics):
+def get_topics(_lda, _mm, _tweets, _numb_topics):
     # Assigns the topics to the documents in corpus
     lda_corpus = [_lda[d] for d in _mm]
     full_lda_corpus = []
@@ -218,7 +270,7 @@ def get_topics(_lda, _mm, _documents, _numb_topics):
 
     clusters = []
     for t in range(_numb_topics):
-        temp = [j for i, j in zip(full_lda_corpus, _documents) if i[t] > threshold]
+        temp = [j for i, j in zip(full_lda_corpus, _tweets) if i[t] > threshold]
         clusters.append(temp)
     clusters.reverse()
     clusters_with_topic = [[i, j] for i, j in zip(ls_topics, clusters)]
@@ -245,7 +297,7 @@ def main_process(_db_name, _bulk_size):
             j += 1
             print 'Load enough tweets.----------------------------------'
             # process bulk of tweets
-            tweet_bulk = clean_doc(tweet_bulk)
+            tweet_bulk = clean(tweet_bulk)
             dict = load_dict()
             new_corpus = [dict.doc2bow(tweet) for tweet in tweet_bulk]
             print 'Update LDA model ----------------------------------'
