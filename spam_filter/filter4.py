@@ -3,6 +3,8 @@ import math
 import os
 from pysqlite2 import dbapi2 as sqlite
 import couchdb
+from crawler import settings
+
 
 def getWords(doc):
     splitter = re.compile('\\W*')
@@ -188,7 +190,7 @@ class classifier:
 
     def retrieve_tweets_classify(self,_numb_tweets):
         server = couchdb.Server()
-        db = server["tweets_us"]
+        db = server[settings.database_us]
 
         results = []
         i = 0

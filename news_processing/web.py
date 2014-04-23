@@ -8,6 +8,7 @@ import os
 import cgi
 import sys
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+import cPickle as pickle
 
 class customHTTPServer(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -30,13 +31,22 @@ class customHTTPServer(BaseHTTPRequestHandler):
 
         def write_content(self):
                 print 'write content'
-                tweet_bulk = news_cluster.lda_train()
-                print '1'
-                for [topic, ls_tweets] in tweet_bulk:
-                    self.wfile.write('<p>Topic ------------------' + topic + '------------------</p>')
-                    for tweet in ls_tweets:
-                        self.wfile.write('<p> Tweet: ' + tweet + '</p>')
+                ls_topics = pickle.load( open( "topics.p", "rb" ) )
 
+                print '1'
+                for topic in ls_topics:
+                    self.wfile.write('<p>Topic: ' + topic[0] + '</p>')
+                    self.wfile.write('<p>Topic Geo Center: ' + str(topic[2][0]) + ' : ' + str(topic[2][1]) + '</p>')
+                    self.wfile.write('<p>Topic Score: ' + str(topic[3]) + '--</p>')
+                    for tweet in topic[1]:
+                        self.wfile.write('<p> Tweet: ' + self.encode(tweet['text']) + '</p>')
+                    self.wfile.write('<p>------------------------------------</p>')
+
+        def encode(self, text):
+            """
+            For printing unicode characters to the console.
+            """
+            return text.encode('utf-8')
 
 def main():
         try:

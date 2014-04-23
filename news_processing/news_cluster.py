@@ -76,7 +76,7 @@ def lda_train():
     # add ranking score for each cluster:
     ls_topics = add_ranking_score(ls_topics)
     # save to pickle file
-
+    pickle.dump(ls_topics, open("topics.p", "wb"))
     return ls_topics
 
     # # Assigns the topics to the documents in corpus
