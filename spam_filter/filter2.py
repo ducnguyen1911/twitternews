@@ -1,5 +1,6 @@
 import re
 import math
+import os
 from pysqlite2 import dbapi2 as sqlite
 
 
@@ -11,6 +12,26 @@ def getWords(doc):
 
     # Return the unique set of words only
     return dict([(w, 1) for w in words])
+
+def filetrain(cl):
+    count = 1
+
+    dataset = open('output.txt', 'r')
+
+    for line in dataset:
+        if count % 2 != 0:
+            	#content = line.strip()
+            	#content2 = content.replace("'", "")
+		content2 = line.replace("'", "")
+            	count += 1
+        else:
+            	tag = line.strip()
+            	print content2
+            	print tag
+            	cl.train(content2, tag)
+            	count += 1
+
+        print count
 
 def sampletrain(cl):
     cl.train('Nobody owns the water.','good')
