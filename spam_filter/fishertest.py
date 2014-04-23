@@ -2,6 +2,7 @@ import fisher
 
 print "step 1"
 cl=fisher.fisherclassifier(fisher.getWords)
+print cl
 print "step 2"
 cl.setdb('test1.db')
 print "step 3"
@@ -12,5 +13,5 @@ print "step 3"
 cl.setminimum('false',0.67)
 cl.setminimum('true',0.1)
 #print cl.classify('There was a critical bug in OpenSSL discovered on Monday. Change passwords for the main online sites that you use. #heartbleed')
-print cl.retrieve_tweets_classify(20)
+print cl.retrieve_tweets_classify(1)
 print "step 4"
