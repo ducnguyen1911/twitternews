@@ -2,16 +2,16 @@ import fisher
 
 print "step 1"
 cl=fisher.fisherclassifier(fisher.getWords)
-print cl
 print "step 2"
-cl.setdb('test1.db')
+cl.setdb('test2.db')
 print "step 3"
+#fisher.filetrain(cl)
 #print cl2.retrieve_tweets_classify(2)
 #cl2.setthreshold('false', 0.67)
 #cl2.setthreshold('true', 0.1)
 #cl.setminimum('false',0.9)
-cl.setminimum('false',0.67)
-cl.setminimum('true',0.1)
-#print cl.classify('There was a critical bug in OpenSSL discovered on Monday. Change passwords for the main online sites that you use. #heartbleed')
-print cl.retrieve_tweets_classify(1)
+cl.setminimum('false',0.1)
+cl.setminimum('true',0.9)
+#print cl.classify('@SydneyZagger SWAG! REALNESS! NEVER STRUGGLIN!')
+print cl.retrieve_tweets_classify(2)
 print "step 4"
