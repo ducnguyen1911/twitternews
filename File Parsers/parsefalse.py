@@ -1,7 +1,7 @@
 import os
 
 inputfile = open('output2.txt', 'r')
-truecount = 0
+falsecount = 0
 lines = []
 
 for line in inputfile:
@@ -9,16 +9,19 @@ for line in inputfile:
 
 inputfile.close()
 
-output = open("outputtrue.txt", "w")
+output = open("outputfalse.txt", "w")
 
 for counter in range(len(lines)):
 	
-	if lines[counter] == 'true':
-		truecount+=1
+	if lines[counter] == 'false':
+		falsecount+=1
 		content = lines[counter-1]
 		tag = lines[counter]
 		output.write(content + '\n')
 		output.write(tag + '\n')
 		print counter
 
-print truecount	
+	if falsecount == 10100:
+		break
+
+print falsecount	
