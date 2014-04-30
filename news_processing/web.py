@@ -70,7 +70,10 @@ class customHTTPServer(BaseHTTPRequestHandler):
                     self.wfile.write('draggable: true,\n')
                     self.wfile.write('raiseOnDrag: true,\n')
                     self.wfile.write('map: map,\n')
-                    self.wfile.write('labelContent: "'+self.compact(topic[0])+'",\n')
+                    content = self.compact(topic[0])
+                    if content.startswith('here'):
+                        content = 'easter ,except ,everyone! ,day! ,met ,cake ,basket'
+                    self.wfile.write('labelContent: "'+content+'",\n')
                     self.wfile.write('labelAnchor: new google.maps.Point(22, 0),\n')
                     self.wfile.write('labelClass: "labels", // the CSS class for the label\n')
                     self.wfile.write('labelStyle: {opacity: 0.75}\n')
@@ -100,11 +103,12 @@ class customHTTPServer(BaseHTTPRequestHandler):
 
         def compact(self, label_topic):
             label = ''
+
             words = label_topic.split('+')
             for w in words:
                 ws = w.split('*')
                 label += ws[1] + ','
-            return label
+            return label.replace('"','')
 
         def get_tweets(self, topic):
             result = ''

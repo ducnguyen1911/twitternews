@@ -4,6 +4,7 @@ import logging, gensim, bz2
 from gensim import corpora, models, similarities
 from itertools import chain
 import cPickle as pickle
+from spam_filter import fisher
 
 __author__ = 'duc07'
 
@@ -30,8 +31,8 @@ def add_geo_center(ls_topics):
                 i += 1
                 geo_center[0] += tweet['coordinates']['coordinates'][0]  # long
                 geo_center[1] += tweet['coordinates']['coordinates'][1]  # lat
-        geo_center[0] /= i
-        geo_center[1] /= i
+        geo_center[0] /= i if len(topic[1]) > 0 else 0
+        geo_center[1] /= i if len(topic[1]) > 0 else 0
         topic.append(geo_center)
     return ls_topics
 
@@ -62,7 +63,8 @@ def add_ranking_score(ls_topics):
 
 def lda_train():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    id2word, mm, tweets = load_corpus(1000, start_time='2014-04-20T00:00:00', end_time='2014-04-20T23:59:59')
+    id2word, mm, tweets = load_corpus(66000)  # , start_time='2014-03-17T00:00:00', end_time='2014-04-17T23:59:59')
+    print 'Size of total good tweets: ', len(tweets)
     # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
     lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
                                           update_every=1, chunksize=1000, passes=1)
@@ -166,14 +168,27 @@ def retrieve_tweets(_db_name, _numb_tweets, _start_time=None, _end_time=None):
     server = couchdb.Server()
     db = server[_db_name]
 
+    # cl = fisher.fisherclassifier(fisher.getWords)
+    # cl.setdb('test1.db')
+    # cl.setminimum('false', 0.67)
+    # cl.setminimum('true', 0.1)
+
     results = []
     i = 0
+
     if _start_time is not None:
         for doc in couchdb_pager(db, view_name='doc_duc/view_create_at',
                                  startkey=_start_time, endkey=_end_time,
                                  bulk=_numb_tweets):
             # print '--> ', doc, ' - ', db[doc]['text']
             # results.append(db[doc]['text'])
+            # text = db[doc]['text']
+            # print(text)
+            # text = text.replace("'", "")
+            # text = text.replace('"', '')
+            # cl_result = cl.classify(db[doc]['text'])
+            # print cl_result
+            # if cl_result == 'true':
             results.append(db[doc])  # append all properties of tweets
             i += 1
             if i == _numb_tweets:
@@ -182,10 +197,15 @@ def retrieve_tweets(_db_name, _numb_tweets, _start_time=None, _end_time=None):
         for doc in couchdb_pager(db, bulk=_numb_tweets):
             # print '--> ', doc, ' - ', db[doc]['text']
             # results.append(db[doc]['text'])
-            results.append(db[doc])  # append all properties of tweets
-            i += 1
-            if i == _numb_tweets:
-                break
+            try:
+                if 'text' in db[doc].keys():
+                    results.append(db[doc])  # append all properties of tweets
+                    i += 1
+                    if i == _numb_tweets:
+                        break
+            except:
+                print 'error'
+
     return results
 
 
@@ -195,7 +215,7 @@ def get_texts(tweets):
 
 
 def load_corpus(_number_tweets, start_time=None, end_time=None):
-    tweets = retrieve_tweets(settings.database_us, _number_tweets, _start_time=start_time, _end_time=end_time)
+    tweets = retrieve_tweets(settings.database_geo, _number_tweets, _start_time=start_time, _end_time=end_time)
     texts = get_texts(tweets)
     texts = clean(texts)
     dictionary = corpora.Dictionary(texts)
@@ -219,11 +239,45 @@ def load_dict():
     return corpora.HashDictionary.load('/tmp/hashDict.dict')
 
 
+def remove_frequent_words(texts):
+    results = []
+
+    # high_df_words = {}
+    # high_f_words = {}
+    # for doc in texts:
+    #     flag = {}
+    #     for word in doc:
+    #         if word not in flag.keys():
+    #             if word not in high_df_words.keys():
+    #                 high_df_words[word] = 1
+    #             else:
+    #                 high_df_words[word] += 1
+    #             flag[word] = 1
+    #         if word not in high_f_words.keys():
+    #             high_f_words[word] = 1
+    #         else:
+    #             high_f_words[word] += 1
+    #     flag = {}
+    #
+    # for w in sorted(high_df_words, key=high_df_words.get, reverse=False):
+    #     print w, high_df_words[w]
+    # f_high_words = [w for w in high_df_words.keys() if high_df_words[w] > 64]
+    # pickle.dump(f_high_words, open("high_words.p", "wb"))
+
+    f_high_words = pickle.load(open("high_words.p", "rb"))
+
+    results = [[word for word in text if word not in f_high_words]
+             for text in texts]
+    return results
+
+
 def clean(documents):
     # remove common words and tokenize
     stoplist = set('rt for a of the and to in i my me you your this'.split())
     texts = [[word for word in doc.lower().split() if (word not in stoplist and is_ascii(word))]
              for doc in documents]
+
+    texts = remove_frequent_words(texts)
 
     # remove words that appear only once
     all_tokens = sum(texts, [])
@@ -320,6 +374,17 @@ def main():
     # main_process(settings.database_geo, 1000)
     # retrieve_tweets(_db_name=settings.database_us, _numb_tweets=3000,
     #                 _start_time='2014-04-11T00:00:00', _end_time='2014-04-11T23:59:59')
+
+    # from sklearn.feature_extraction.text import CountVectorizer
+    # vectorizer = CountVectorizer(min_df=1)
+    # corpus = [
+    #     'This is the first document.',
+    #     'This is the second second document.',
+    #     'And the third one.',
+    #     'Is this the first document?',
+    # ]
+    # X = vectorizer.fit_transform(corpus)
+    # print vectorizer.vocabulary_.get('document')
 
 if __name__ == "__main__":
     main()
