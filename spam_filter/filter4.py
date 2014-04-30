@@ -190,14 +190,14 @@ class classifier:
 
     def retrieve_tweets_classify(self,_numb_tweets):
         server = couchdb.Server()
-        db = server[settings.database_us]
+        db = server["tweets_us"]
 
         results = []
         i = 0
         for doc in self.couchdb_pager(db):
             # print '--> ', doc, ' - ', db[doc]['text']
             try:
-                if self.classify(db[doc]['text']) == 1:
+                if self.classify(db[doc]['text']) == 'true':
                     results.append(db[doc])
                     i += 1
                     if i == _numb_tweets:

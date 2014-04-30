@@ -18,16 +18,16 @@ def getWords(doc):
 def filetrain(cl):
     count = 1
 
-    dataset = open('output.txt', 'r')
+    dataset = open('outputfalse.txt', 'r')
 
     for line in dataset:
         if count % 2 != 0:
-            	content = line
-            	#content2 = content.replace("'", "")
-		#content2 = line.replace("'", "")
+            	content = line.strip()
+            	content = content.replace("'", "")
+		content = content.replace("'", "")
             	count += 1
         else:
-            	tag = line
+            	tag = line.strip()
             	print content
             	print tag
             	cl.train(content, tag)
