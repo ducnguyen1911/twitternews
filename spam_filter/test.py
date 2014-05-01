@@ -1,9 +1,6 @@
-import filter
+import filter3
 
-
-cl=filter.spamFilter(filter.getWords)
-cl.train('the quick brown fox jumps over the lazy dog','good')
-cl.train('make quick money in the online casino','bad')
-print cl.countTimesFeatureInCategory('quick','good')
-
-print cl.countTimesFeatureInCategory('quick','bad')
+cl2=filter3.naivebayes(filter3.getWords)
+cl2.setdb('test1.db')
+filter3.filetrain(cl2)
+print cl2.classify('quick money')

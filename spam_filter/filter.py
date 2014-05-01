@@ -11,6 +11,13 @@ def getWords(doc):
     # Return the unique set of words only
     return dict([(w, 1) for w in words])
 
+def sampletrain(cl):
+    cl.train('Nobody owns the water.','good')
+    cl.train('the quick rabbit jumps fences','good')
+    cl.train('buy pharmaceuticals now','bad')
+    cl.train('make quick money at the online casino','bad')
+    cl.train('the quick brown fox jumps','good')
+
 
 class spamFilter:
     def __init__(self, getfeatures, filename=None):
@@ -65,6 +72,26 @@ class spamFilter:
             self.increaseFeatureCategoryCount(f, category)
 
         self.increaseCategoryCount(category)
+
+
+    def featureProbability(self, feature, category):
+
+        if self.countNumberOfItemInCategory(category) == 0:
+            return 0
+
+        return self.countTimesFeatureInCategory(feature, category) / self.countNumberOfItemInCategory(category)
+
+    def weightedprob(self,feature,category,prf,weight=1.0,ap=0.5):
+        # Calculate current probability
+        basicprob=prf(feature,category)
+
+        # Count the number of times this feature has appeared in
+        # all categories
+        totals=sum([self.countTimesFeatureInCategory(feature,category) for c in self.listAllCategories(  )])
+
+        # Calculate the weighted average
+        bp=((weight*ap)+(totals*basicprob))/(weight+totals)
+        return bp
 
 
 
