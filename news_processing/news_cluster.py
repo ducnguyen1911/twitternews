@@ -63,7 +63,7 @@ def add_ranking_score(ls_topics):
 
 def lda_train():
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    id2word, mm, tweets = load_corpus(66000)  # , start_time='2014-03-17T00:00:00', end_time='2014-04-17T23:59:59')
+    id2word, mm, tweets = load_corpus(1000, start_time='2014-04-15T00:00:00', end_time='2014-04-15T23:59:59')
     print 'Size of total good tweets: ', len(tweets)
     # extract 100 LDA topics, using 1 pass and updating once every 1 chunk (10,000 documents)
     lda = gensim.models.ldamodel.LdaModel(corpus=mm, id2word=id2word, num_topics=100,
@@ -173,6 +173,12 @@ def retrieve_tweets(_db_name, _numb_tweets, _start_time=None, _end_time=None):
     # cl.setminimum('false', 0.67)
     # cl.setminimum('true', 0.1)
 
+    cl = fisher.fisherclassifier(fisher.getWords)
+    cl.setdb('test2.db')
+    cl.setminimum('false', 0.1)
+    cl.setminimum('true', 0.9)
+    # good_tweets = cl.retrieve_tweets_classify(20)
+
     results = []
     i = 0
 
@@ -186,13 +192,13 @@ def retrieve_tweets(_db_name, _numb_tweets, _start_time=None, _end_time=None):
             # print(text)
             # text = text.replace("'", "")
             # text = text.replace('"', '')
-            # cl_result = cl.classify(db[doc]['text'])
-            # print cl_result
-            # if cl_result == 'true':
-            results.append(db[doc])  # append all properties of tweets
-            i += 1
-            if i == _numb_tweets:
-                break
+            cl_result = cl.classify(db[doc]['text'])
+            print cl_result
+            if cl_result == 'true':
+                results.append(db[doc])  # append all properties of tweets
+                i += 1
+                if i == _numb_tweets:
+                    break
     else:
         for doc in couchdb_pager(db, bulk=_numb_tweets):
             # print '--> ', doc, ' - ', db[doc]['text']
@@ -215,7 +221,7 @@ def get_texts(tweets):
 
 
 def load_corpus(_number_tweets, start_time=None, end_time=None):
-    tweets = retrieve_tweets(settings.database_geo, _number_tweets, _start_time=start_time, _end_time=end_time)
+    tweets = retrieve_tweets(settings.database_us, _number_tweets, _start_time=start_time, _end_time=end_time)
     texts = get_texts(tweets)
     texts = clean(texts)
     dictionary = corpora.Dictionary(texts)
@@ -371,20 +377,6 @@ def main_process(_db_name, _bulk_size):
 def main():
     lda_train()
     # hdp()
-    # main_process(settings.database_geo, 1000)
-    # retrieve_tweets(_db_name=settings.database_us, _numb_tweets=3000,
-    #                 _start_time='2014-04-11T00:00:00', _end_time='2014-04-11T23:59:59')
-
-    # from sklearn.feature_extraction.text import CountVectorizer
-    # vectorizer = CountVectorizer(min_df=1)
-    # corpus = [
-    #     'This is the first document.',
-    #     'This is the second second document.',
-    #     'And the third one.',
-    #     'Is this the first document?',
-    # ]
-    # X = vectorizer.fit_transform(corpus)
-    # print vectorizer.vocabulary_.get('document')
 
 if __name__ == "__main__":
     main()
