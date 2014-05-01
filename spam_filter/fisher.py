@@ -192,7 +192,8 @@ class classifier:
 
     def retrieve_tweets_classify(self,_numb_tweets):
         server = couchdb.Server()
-        db = server["tweets_us"]
+        # db = server["tweets_us"]
+        db = server["twitterutils_us"]
 	count = 1
         results = []
         i = 0
@@ -202,7 +203,7 @@ class classifier:
 		text = db[doc]['text']
 		text = text.replace("'", "")
 		text = text.replace('"', '')
-		print text
+		# print text
                 if self.classify(text) == 'true':
                     results.append(db[doc])
                     i += 1
@@ -211,7 +212,7 @@ class classifier:
             except:
                 print 'error'
 	    #document = db.get(doc)
-	    print count
+	    # print count
 	    #print document['text']
             count+=1
         return results

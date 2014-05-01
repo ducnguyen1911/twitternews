@@ -13,5 +13,8 @@ print "step 3"
 cl.setminimum('false',0.1)
 cl.setminimum('true',0.9)
 #print cl.classify('@SydneyZagger SWAG! REALNESS! NEVER STRUGGLIN!')
-print cl.retrieve_tweets_classify(2)
+good_tweets = cl.retrieve_tweets_classify(20)
+print('Start to print good tweets')
+for t in good_tweets:
+    print '-------------', t['text']
 print "step 4"
