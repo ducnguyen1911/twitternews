@@ -60,7 +60,7 @@ class customHTTPServer(BaseHTTPRequestHandler):
                 self.wfile.write('          var map = new google.maps.Map(document.getElementById("map-canvas"),\n')
                 self.wfile.write('              mapOptions);\n')
 
-                ls_topics = pickle.load(open("topics.p", "rb"))
+                ls_topics = pickle.load(open("../news_processing/topics.p", "rb"))
                 i = 0
                 for topic in ls_topics:
                     i += 1
