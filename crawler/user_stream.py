@@ -1,11 +1,12 @@
 import json
+import time
+import sys
 
 from tweepy.streaming import StreamListener
 from tweepy import Stream, OAuthHandler
 import couchdbkit
-import settings
-import time
-import sys
+
+from utils import settings
 
 
 class CouchDBStreamListener(StreamListener):
@@ -69,8 +70,8 @@ def main():
 
     stream = Stream(auth, listener)
     while True:
-        if listener.tweet_count > 100000:
-            break
+        # if listener.tweet_count > 100000:
+        #     break
         try:
             # stream.userstream()
             stream.sample()

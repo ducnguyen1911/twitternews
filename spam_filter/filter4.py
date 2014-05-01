@@ -1,9 +1,6 @@
 import re
-import math
-import os
 from pysqlite2 import dbapi2 as sqlite
 import couchdb
-from crawler import settings
 
 
 def getWords(doc):
